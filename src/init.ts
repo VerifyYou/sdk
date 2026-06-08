@@ -66,7 +66,7 @@ export async function vycheck(opts: VyCheckOptions = {}): Promise<string | undef
     throwOnError: true,
     body: {
       origin: window.location.origin,
-      return_path: window.location.pathname,
+      start_path: window.location.pathname,
       external_tracker: opts.externalTracker,
       pass_params: Object.keys(passParams).length ? passParams : undefined,
     },

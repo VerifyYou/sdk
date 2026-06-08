@@ -2,13 +2,15 @@
   "openapi": "3.1.0",
   "info": {
     "title": "VerifyYou API",
-    "description": "A VerifyYou service",
+    "description": "The VerifyYou developer API. Start a verification from the browser with your publishable key, then confirm the result server-side with your secret key. Authenticate every request with `Authorization: Bearer <key>`.",
     "version": "0.1.0"
   },
   "paths": {
     "/v3/verifications": {
       "post": {
-        "tags": ["external", "verification"],
+        "tags": [
+          "Verifications"
+        ],
         "summary": "Create Verification",
         "operationId": "external-create_verification",
         "security": [
@@ -50,7 +52,9 @@
         }
       },
       "get": {
-        "tags": ["external", "verification"],
+        "tags": [
+          "Verifications"
+        ],
         "summary": "List Verifications",
         "operationId": "external-list_verifications",
         "security": [
@@ -109,7 +113,9 @@
     },
     "/v3/verifications/lookup": {
       "post": {
-        "tags": ["external", "verification"],
+        "tags": [
+          "Verifications"
+        ],
         "summary": "Get Verification",
         "operationId": "external-get_verification",
         "requestBody": {
@@ -153,7 +159,9 @@
     },
     "/v3/verifications/{verification_id}": {
       "put": {
-        "tags": ["external", "verification"],
+        "tags": [
+          "Verifications"
+        ],
         "summary": "Update Verification",
         "operationId": "external-update_verification",
         "security": [
@@ -207,7 +215,9 @@
         }
       },
       "delete": {
-        "tags": ["external", "verification"],
+        "tags": [
+          "Verifications"
+        ],
         "summary": "Delete Verification",
         "operationId": "external-delete_verification",
         "security": [
@@ -246,7 +256,9 @@
     },
     "/v3/initialize": {
       "post": {
-        "tags": ["external"],
+        "tags": [
+          "Verification Flow"
+        ],
         "summary": "Initialize a verification session",
         "description": "Start a verification for the calling page and return the hosted URL to redirect the user to. Accepts a publishable key (browser) or a secret key (server). Only secret keys may supply `email`/`phone`/`external_id`.",
         "operationId": "external-initialize",
@@ -291,7 +303,9 @@
     },
     "/v3/confirmations/{token}": {
       "get": {
-        "tags": ["external", "confirmations"],
+        "tags": [
+          "Confirmations"
+        ],
         "summary": "Get Confirmation",
         "operationId": "external-get_confirmation",
         "security": [
@@ -336,7 +350,9 @@
     },
     "/v3/confirmations/{token}/lock": {
       "post": {
-        "tags": ["external", "confirmations"],
+        "tags": [
+          "Confirmations"
+        ],
         "summary": "Lock Confirmation",
         "operationId": "external-lock_confirmation",
         "security": [
@@ -381,7 +397,9 @@
     },
     "/v3/keys/test": {
       "post": {
-        "tags": ["external", "keys"],
+        "tags": [
+          "API Keys"
+        ],
         "summary": "Test Key",
         "operationId": "external-test_key",
         "responses": {
@@ -428,7 +446,11 @@
           }
         },
         "type": "object",
-        "required": ["verified", "external_id", "verification"],
+        "required": [
+          "verified",
+          "external_id",
+          "verification"
+        ],
         "title": "ConfirmationResponse"
       },
       "ExternalCreateVerificationRequest": {
@@ -454,6 +476,28 @@
               }
             ],
             "title": "Return Path"
+          },
+          "start_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Path"
+          },
+          "redirect_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Url"
           },
           "external_id": {
             "anyOf": [
@@ -515,7 +559,10 @@
           }
         },
         "type": "object",
-        "required": ["url", "verification_id"],
+        "required": [
+          "url",
+          "verification_id"
+        ],
         "title": "ExternalCreateVerificationResponse"
       },
       "GetVerificationRequest": {
@@ -567,8 +614,26 @@
             "title": "Origin"
           },
           "return_path": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Return Path"
+          },
+          "start_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Path"
           },
           "email": {
             "anyOf": [
@@ -630,7 +695,9 @@
           }
         },
         "type": "object",
-        "required": ["origin", "return_path"],
+        "required": [
+          "origin"
+        ],
         "title": "InitializeRequest"
       },
       "InitializeResponse": {
@@ -641,7 +708,9 @@
           }
         },
         "type": "object",
-        "required": ["url"],
+        "required": [
+          "url"
+        ],
         "title": "InitializeResponse"
       },
       "KeyTestResponse": {
@@ -679,7 +748,10 @@
           }
         },
         "type": "object",
-        "required": ["valid", "key_type"],
+        "required": [
+          "valid",
+          "key_type"
+        ],
         "title": "KeyTestResponse"
       },
       "ListVerificationsResponse": {
@@ -705,7 +777,12 @@
           }
         },
         "type": "object",
-        "required": ["items", "total", "limit", "offset"],
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
         "title": "ListVerificationsResponse"
       },
       "LockResponse": {
@@ -716,12 +793,18 @@
           }
         },
         "type": "object",
-        "required": ["locked"],
+        "required": [
+          "locked"
+        ],
         "title": "LockResponse"
       },
       "TrackAttribute": {
         "type": "string",
-        "enum": ["ip_geo", "age", "gender"],
+        "enum": [
+          "ip_geo",
+          "age",
+          "gender"
+        ],
         "title": "TrackAttribute"
       },
       "UpdateVerificationRequest": {
@@ -747,6 +830,28 @@
               }
             ],
             "title": "Return Path"
+          },
+          "start_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Path"
+          },
+          "redirect_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Url"
           },
           "external_id": {
             "anyOf": [
@@ -829,7 +934,11 @@
           }
         },
         "type": "object",
-        "required": ["loc", "msg", "type"],
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
         "title": "ValidationError"
       },
       "VerificationConfig": {
@@ -837,6 +946,11 @@
           "require_account": {
             "type": "boolean",
             "title": "Require Account",
+            "default": false
+          },
+          "is_test": {
+            "type": "boolean",
+            "title": "Is Test",
             "default": false
           },
           "track_attributes": {
@@ -907,6 +1021,28 @@
             ],
             "title": "Return Path"
           },
+          "start_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Path"
+          },
+          "redirect_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Url"
+          },
           "asset_id": {
             "anyOf": [
               {
@@ -929,6 +1065,8 @@
           "external_tenant_id",
           "origin",
           "return_path",
+          "start_path",
+          "redirect_url",
           "asset_id",
           "config"
         ],
@@ -960,7 +1098,10 @@
           }
         },
         "type": "object",
-        "required": ["external_id", "external_tenant_id"],
+        "required": [
+          "external_id",
+          "external_tenant_id"
+        ],
         "title": "VerificationRef"
       },
       "VerificationResponse": {
@@ -1017,6 +1158,28 @@
             ],
             "title": "Return Path"
           },
+          "start_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Path"
+          },
+          "redirect_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Url"
+          },
           "asset_id": {
             "anyOf": [
               {
@@ -1040,6 +1203,8 @@
           "external_tenant_id",
           "origin",
           "return_path",
+          "start_path",
+          "redirect_url",
           "asset_id",
           "config"
         ],
@@ -1052,5 +1217,23 @@
         "scheme": "bearer"
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Verification Flow",
+      "description": "Start a hosted verification and get the URL to redirect the user to."
+    },
+    {
+      "name": "Verifications",
+      "description": "Create, look up, list, update, and delete verifications (secret key)."
+    },
+    {
+      "name": "Confirmations",
+      "description": "Confirm a verification token, and lock it against replay (secret key)."
+    },
+    {
+      "name": "API Keys",
+      "description": "Check whether a publishable or secret key is valid."
+    }
+  ]
 }

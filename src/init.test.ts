@@ -42,7 +42,7 @@ describe("vycheck", () => {
     expect(out).toBeUndefined();
     expect(calledUrl).toContain("/v3/initialize");
     expect(body.origin).toBe(window.location.origin);
-    expect(body.return_path).toBe("/checkout");
+    expect(body.start_path).toBe("/checkout");
     expect(body.pass_params).toEqual({ ref: "42" }); // vyc excluded
     expect(body.external_tracker).toBe("t1");
   });
