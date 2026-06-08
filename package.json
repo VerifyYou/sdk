@@ -1,77 +1,77 @@
 {
-  "name": "@verifyyou-sdk/client",
-  "version": "0.1.0",
-  "description": "VerifyYou SDK — verify a human with two calls, from the browser or your server.",
-  "type": "module",
-  "license": "MIT",
-  "author": "VerifyYou",
-  "homepage": "https://github.com/VerifyYou/sdk#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/VerifyYou/sdk.git"
-  },
-  "bugs": {
-    "url": "https://github.com/VerifyYou/sdk/issues"
-  },
-  "keywords": [
-    "verifyyou",
-    "identity",
-    "verification",
-    "liveness",
-    "biometric",
-    "kyc",
-    "sdk"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
-  "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8",
-  "sideEffects": false,
-  "files": [
-    "dist"
-  ],
-  "main": "./dist/index.umd.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "unpkg": "./dist/index.umd.cjs",
-  "jsdelivr": "./dist/index.umd.cjs",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.umd.cjs"
+    "name": "@verifyyou-sdk/client",
+    "version": "0.1.1",
+    "description": "VerifyYou SDK — verify a human with two calls, from the browser or your server.",
+    "type": "module",
+    "license": "MIT",
+    "author": "VerifyYou",
+    "homepage": "https://github.com/VerifyYou/sdk#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/VerifyYou/sdk.git"
+    },
+    "bugs": {
+        "url": "https://github.com/VerifyYou/sdk/issues"
+    },
+    "keywords": [
+        "verifyyou",
+        "identity",
+        "verification",
+        "liveness",
+        "biometric",
+        "kyc",
+        "sdk"
+    ],
+    "engines": {
+        "node": ">=18"
+    },
+    "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8",
+    "sideEffects": false,
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/index.umd.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "unpkg": "./dist/index.umd.cjs",
+    "jsdelivr": "./dist/index.umd.cjs",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.umd.cjs"
+        }
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "api:gen": "openapi-ts",
+        "refresh-spec": "cp ../connect-service/external.openapi.json specs/external.openapi.json",
+        "build": "pnpm api:gen && vite build",
+        "playground": "vite --config playground/vite.config.ts",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "lint": "eslint \"src/**/*.ts\"",
+        "format": "prettier . --write",
+        "format:check": "prettier . --check",
+        "test": "vitest",
+        "test:run": "vitest run",
+        "check": "pnpm lint && pnpm typecheck && pnpm format:check && pnpm test:run",
+        "prepublishOnly": "pnpm check && pnpm build"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.39.1",
+        "@hey-api/client-fetch": "0.13.1",
+        "@hey-api/openapi-ts": "0.97.1",
+        "@types/node": "^24.10.1",
+        "eslint": "^9.39.1",
+        "globals": "^16.5.0",
+        "jsdom": "^29.1.1",
+        "prettier": "^3.4.2",
+        "typescript": "~5.9.3",
+        "typescript-eslint": "^8.46.4",
+        "vite": "^7.3.1",
+        "vite-plugin-dts": "^5.0.2",
+        "vitest": "^4.1.4"
     }
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "scripts": {
-    "api:gen": "openapi-ts",
-    "refresh-spec": "cp ../connect-service/external.openapi.json specs/external.openapi.json",
-    "build": "pnpm api:gen && vite build",
-    "playground": "vite --config playground/vite.config.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint \"src/**/*.ts\"",
-    "format": "prettier . --write",
-    "format:check": "prettier . --check",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "check": "pnpm lint && pnpm typecheck && pnpm format:check && pnpm test:run",
-    "prepublishOnly": "pnpm check && pnpm build"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@hey-api/client-fetch": "0.13.1",
-    "@hey-api/openapi-ts": "0.97.1",
-    "@types/node": "^24.10.1",
-    "eslint": "^9.39.1",
-    "globals": "^16.5.0",
-    "jsdom": "^29.1.1",
-    "prettier": "^3.4.2",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.4",
-    "vite": "^7.3.1",
-    "vite-plugin-dts": "^5.0.2",
-    "vitest": "^4.1.4"
-  }
 }
