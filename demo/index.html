@@ -114,9 +114,13 @@
       <input id="email" type="email" placeholder="you@example.com" />
 
       <div class="row">
-        <label><input type="checkbox" id="skipShare" /> Skip share page</label>
-        <label><input type="radio" name="mode" value="drawer" checked /> Drawer</label>
-        <label><input type="radio" name="mode" value="inline" /> Inline</label>
+        <label><input type="radio" name="flow" value="redirect" checked /> Redirect</label>
+        <label><input type="radio" name="flow" value="iframe" /> Iframe</label>
+      </div>
+      <div class="row">
+        <label><input type="radio" name="display" value="drawer" checked /> Drawer</label>
+        <label><input type="radio" name="display" value="inline" /> Inline</label>
+        <span style="color: #889; font-size: 12px">(iframe only)</span>
       </div>
 
       <button class="cta" id="verifyBtn">Verify with VerifyYou</button>

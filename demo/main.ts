@@ -1,7 +1,4 @@
-// Demo "partner site" wiring: imports the SDK straight from source so changes
-// to src/embed.ts hot-reload here. Mirrors how a host site would call the CDN
-// global `VerifyYou`.
-import { verify } from "../src/index";
+import { init, vycheck, vyget } from "../src/index";
 
 const $ = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -13,32 +10,48 @@ function log(label: string, value: unknown): void {
   out.textContent = `${label}\n${JSON.stringify(value, null, 2)}`;
 }
 
+function radio(name: string): string {
+  return (
+    document.querySelector(`input[name="${name}"]:checked`) as HTMLInputElement
+  )?.value;
+}
+
+const returned = vyget();
+if (returned.token != null || returned.vyc != null) {
+  log("returned from redirect (vyget)", returned);
+}
+
 $("verifyBtn").addEventListener("click", async () => {
   const publishableKey = ($("publishableKey") as HTMLInputElement).value.trim();
   if (!publishableKey) {
     log("error", "paste your publishable key first (pk_test_…)");
     return;
   }
-  const mode =
-    (document.querySelector('input[name="mode"]:checked') as HTMLInputElement)
-      ?.value === "inline"
-      ? "inline"
-      : "drawer";
+  const mode = radio("flow") === "iframe" ? "iframe" : "redirect";
+  const display = radio("display") === "inline" ? "inline" : "drawer";
+  const email = ($("email") as HTMLInputElement).value.trim() || undefined;
 
   inlineHost.innerHTML = "";
-  log("status", `launching ${mode} flow…`);
+  log(
+    "status",
+    `launching ${mode}${mode === "iframe" ? ` (${display})` : ""} flow…`,
+  );
+
+  init({
+    publishableKey,
+    mode,
+    display,
+    email,
+    container: display === "inline" ? inlineHost : undefined,
+    connectBase: location.origin,
+    onComplete: (r) => log("onComplete", r),
+    onClose: () => log("status", "flow closed"),
+  });
 
   try {
-    const result = await verify({
-      publishableKey,
-      mode,
-      container: mode === "inline" ? inlineHost : undefined,
-      // Call connect through this page's own origin (vite proxies /v3 to
-      // connect), so an https demo never makes a blocked http fetch.
-      connectBase: location.origin,
-      onClose: () => log("status", "flow closed"),
-    });
-    log("vy:complete", result);
+    // redirect mode navigates away (never resolves); iframe resolves the result.
+    const result = await vycheck();
+    log("vycheck result", result);
   } catch (err) {
     log("error", String(err));
   }

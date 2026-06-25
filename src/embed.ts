@@ -1,4 +1,5 @@
 import { CONNECT_BASE } from "./config";
+import { initialize } from "./connect";
 
 /**
  * Iframe-embedded verification.
@@ -82,30 +83,6 @@ function resolveContainer(container?: HTMLElement | string): HTMLElement {
     return el;
   }
   throw new Error("VerifyYou: inline mode requires a `container`");
-}
-
-/** Exchange a publishable key for an embeddable verification URL. */
-async function initialize(
-  opts: VerifyOptions,
-  connectBase: string,
-): Promise<string> {
-  const res = await fetch(`${connectBase}/v3/initialize`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${opts.publishableKey}`,
-    },
-    body: JSON.stringify({
-      origin: opts.origin ?? location.origin,
-      return_path: opts.returnPath ?? "/",
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`VerifyYou: initialize failed (HTTP ${res.status})`);
-  }
-  const data = (await res.json()) as { url?: string };
-  if (!data?.url) throw new Error("VerifyYou: initialize returned no url");
-  return data.url;
 }
 
 /** Append the embed params to the URL connect-service returned. */
@@ -408,7 +385,12 @@ export function verify(opts: VerifyOptions): VerifySession {
 
   // Kick off init, then point the iframe at the returned URL.
   window.addEventListener("message", onMessage);
-  initialize(opts, connectBase)
+  initialize({
+    publishableKey: opts.publishableKey,
+    origin: opts.origin,
+    returnPath: opts.returnPath,
+    connectBase,
+  })
     .then((rawUrl) => {
       if (settled) return; // closed before init resolved
       const built = withEmbedParams(rawUrl, opts);

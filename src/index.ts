@@ -7,7 +7,12 @@ export type { VerifyYouErrorCode } from "./errors";
 export { readTokenFromUrl, verifyToken } from "./token";
 export type { TokenPayload } from "./token";
 
-// Iframe-embedded verification (replaces the redirect flow).
+// Legacy-compatible API: init/vycheck/vyget. Defaults to the redirect flow;
+// opt into the iframe with init({ mode: "iframe" }).
+export { init, vycheck, vyget } from "./client";
+export type { InitConfig, VyCheckOptions, VyResult, VerifyMode } from "./client";
+
+// Direct iframe primitive (what the iframe flow is built on).
 export { verify } from "./embed";
 export type { VerifyOptions, VerifyResult, VerifySession } from "./embed";
 
