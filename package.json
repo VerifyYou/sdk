@@ -1,18 +1,47 @@
 {
-  "name": "verifyyou-sdk",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@verifyyou-sdk/client",
+  "version": "0.2.0-beta.0",
+  "description": "VerifyYou browser SDK — redirect + opt-in iframe verification flow (beta).",
+  "license": "UNLICENSED",
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "unpkg": "./dist/verifyyou.iife.js",
+  "jsdelivr": "./dist/verifyyou.iife.js",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  },
   "scripts": {
     "dev": "vite",
     "demo": "vite --config vite.config.demo.ts",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "tsc && vite build && vite build --config vite.config.cdn.ts",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.9",
+    "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
     "vite": "^8.0.12",
     "vite-plugin-dts": "^5.0.2",
-    "vite-plugin-mkcert": "^2.1.0"
+    "vite-plugin-mkcert": "^2.1.0",
+    "vitest": "^4.1.9"
   }
 }
