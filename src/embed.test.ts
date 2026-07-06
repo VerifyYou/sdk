@@ -39,14 +39,18 @@ async function mountInline() {
 }
 
 describe("verify() iframe flow", () => {
-  it("appends the embed params (vy_embed, iframe, vy_origin) to the hosted URL", async () => {
+  it("appends the embed params (vy_embed, vy_origin) to the hosted URL", async () => {
     mockInitialize();
     const { iframe } = await mountInline();
     const src = new URL(iframe.src);
     expect(src.origin + src.pathname).toBe(APP_URL);
     expect(src.searchParams.get("vy_embed")).toBe("1");
-    expect(src.searchParams.get("iframe")).toBe("1");
     expect(src.searchParams.get("vy_origin")).toBe(location.origin);
+    // Every appended key must be vy-prefixed — app-fe reserves the prefix so
+    // its partner query-param passthrough never forwards SDK params.
+    for (const key of src.searchParams.keys()) {
+      expect(key.startsWith("vy")).toBe(true);
+    }
   });
 
   it("resolves with the verdict when app-fe posts vy:complete from the app origin", async () => {

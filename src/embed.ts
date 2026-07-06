@@ -1,5 +1,14 @@
 import { CONNECT_BASE } from "./config";
 import { initialize } from "./connect";
+import {
+  EMBED_EMAIL_PARAM,
+  EMBED_MSG_CLOSE,
+  EMBED_MSG_COMPLETE,
+  EMBED_MSG_RESIZE,
+  EMBED_ORIGIN_PARAM,
+  EMBED_PARAM,
+  EMBED_PHONE_PARAM,
+} from "./protocol";
 
 /**
  * Iframe-embedded verification.
@@ -13,11 +22,15 @@ import { initialize } from "./connect";
  *      back to us (rather than `window.location.assign`ing the redirect URL).
  *
  * The app is told it's embedded via query params we append to the returned URL:
- *   vy_embed=1, vy_origin=<host origin>, optional vy_email/vy_phone/vy_skip_share.
- * (app-fe must persist these on first load — the `?vys=` handoff redirects to
- * `/verification/$id` and would otherwise drop them.)
+ *   vy_embed=1, vy_origin=<host origin>, optional vy_email/vy_phone. All keys
+ *   are vy-prefixed on purpose: app-fe reserves that prefix, so its partner
+ *   query-param passthrough never forwards them. (app-fe persists them on first
+ *   load — the `?vys=` handoff redirects to `/verification/$id` and would
+ *   otherwise drop them.)
  *
- * Message protocol (app-fe -> this parent, `event.data.type`):
+ * Message protocol (app-fe -> this parent, `event.data.type`; the param and
+ * message names live in ./protocol.ts, mirrored in app-fe and pinned by
+ * test/protocol.contract.test.ts):
  *   - "vy:complete"  { vyt, vyc, redirect_url }  (vyt=token, vyc="1"|"0")
  *   - "vy:close"     user dismissed / cancelled inside the app
  *   - "vy:resize"    { height }  inline-mode height sync
@@ -91,12 +104,12 @@ function withEmbedParams(
   opts: VerifyOptions,
 ): { src: string; appOrigin: string } {
   const url = new URL(rawUrl);
-  url.searchParams.set("vy_embed", "1");
-  url.searchParams.set("vy_origin", location.origin);
-  // Opts the web app into its embedded chrome (brand bar + always-visible close).
-  url.searchParams.set("iframe", "1");
-  if (opts.email) url.searchParams.set("vy_email", opts.email);
-  if (opts.phone) url.searchParams.set("vy_phone", opts.phone);
+  url.searchParams.set(EMBED_PARAM, "1");
+  // Always the real host-page origin (postMessage target), regardless of the
+  // `origin` option — that one only feeds connect-service's redirect-URL build.
+  url.searchParams.set(EMBED_ORIGIN_PARAM, location.origin);
+  if (opts.email) url.searchParams.set(EMBED_EMAIL_PARAM, opts.email);
+  if (opts.phone) url.searchParams.set(EMBED_PHONE_PARAM, opts.phone);
   return { src: url.toString(), appOrigin: url.origin };
 }
 
@@ -321,7 +334,7 @@ export function verify(opts: VerifyOptions): VerifySession {
     if (!data || typeof data.type !== "string") return;
 
     switch (data.type) {
-      case "vy:complete": {
+      case EMBED_MSG_COMPLETE: {
         const vyc = (data.vyc as string | null) ?? null;
         onComplete({
           token: (data.vyt as string | null) ?? null,
@@ -331,10 +344,10 @@ export function verify(opts: VerifyOptions): VerifySession {
         });
         break;
       }
-      case "vy:close":
+      case EMBED_MSG_CLOSE:
         onClose();
         break;
-      case "vy:resize":
+      case EMBED_MSG_RESIZE:
         if (mode === "inline" && inlineHeight === "auto" && typeof data.height === "number") {
           iframe.style.height = `${data.height}px`;
         }

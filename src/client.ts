@@ -1,6 +1,7 @@
 import { initialize } from "./connect";
 import { verify } from "./embed";
 import type { VerifyResult } from "./embed";
+import { VERDICT_CODE_PARAM, VERDICT_TOKEN_PARAM } from "./protocol";
 
 export type VerifyMode = "redirect" | "iframe";
 
@@ -54,8 +55,8 @@ export interface InitConfig {
  *  (except the publishable key and mode, which are fixed at init). */
 export type VyCheckOptions = Partial<Omit<InitConfig, "publishableKey" | "mode">>;
 
-const TOKEN_PARAM = "vyt";
-const VERDICT_PARAM = "vyc";
+const TOKEN_PARAM = VERDICT_TOKEN_PARAM;
+const VERDICT_PARAM = VERDICT_CODE_PARAM;
 
 let config: InitConfig | null = null;
 let lastResult: VyResult | null = null; // iframe completion, surfaced via vyget()
