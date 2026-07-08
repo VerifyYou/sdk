@@ -1,20 +1,15 @@
-import { resolve } from "node:path";
+import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
-import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [dts({ include: ["src"], exclude: ["src/**/*.test.ts"] })],
+  plugins: [dts({ include: ["src/index.ts", "src/vite-env.d.ts"] })], // public entry + env types, not cdn.ts
   build: {
-    sourcemap: true,
     lib: {
-      entry: resolve(__dirname, "src/index.ts"),
-      // UMD global for raw-JS / <script> consumers: window.Vy
-      name: "Vy",
-      formats: ["es", "umd"],
-      fileName: (format) => (format === "es" ? "index.js" : "index.umd.cjs"),
+      entry: "src/index.ts",
+      formats: ["es", "cjs"],
+      fileName: (fmt) => `index.${fmt === "es" ? "mjs" : "cjs"}`,
     },
-  },
-  test: {
-    environment: "jsdom",
+    sourcemap: true,
+    target: "es2020",
   },
 });
