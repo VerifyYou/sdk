@@ -9,6 +9,10 @@
  * ASSUMPTIONS TO CONFIRM against the real API — change here if they differ:
  *   1. The signed token arrives in the `vy_token` query param (TOKEN_PARAM).
  *   2. The JWKS lives at `/.well-known/jwks.json` under the API origin (JWKS_URL).
+ *      As of 2026-07 NO deployed service publishes a JWKS — api.verifyyou.io
+ *      404s and neither connect nor app serve one — so `verifyToken()` cannot
+ *      succeed against prod until that endpoint ships. The documented flow
+ *      (`vyt` + `GET /v3/confirmations/{token}`) doesn't use it.
  *   3. The token is a compact EdDSA JWT with `kid` in its header — this one is
  *      enforced (and documented) in token.ts, not configurable here.
  */

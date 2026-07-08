@@ -39,25 +39,33 @@ import {
 export interface VerifyOptions {
   /** Publishable key (`pk_test_*` / `pk_live_*`) identifying the customer. */
   publishableKey: string;
-  /** Host origin reported to connect-service. Defaults to `location.origin`. */
+  /**
+   * @deprecated Configure the redirect URL on the verification in the Connect
+   * portal instead. Still accepted and sent as a fallback for verifications
+   * without a saved redirect URL. Defaults to `location.origin`.
+   */
   origin?: string;
-  /** Return path on the host origin. Defaults to "/". */
+  /**
+   * @deprecated Configure the redirect URL on the verification in the Connect
+   * portal instead. Still accepted and sent as a fallback for verifications
+   * without a saved redirect URL. Defaults to "/".
+   */
   returnPath?: string;
   /**
    * Prefill the login step (best-effort, UI only). A publishable key can't bind
-   * identity server-side — that needs a secret key from the partner backend.
+   * identity server-side; that needs a secret key from the partner backend.
    */
   email?: string;
   phone?: string;
   /**
-   * "drawer" (default) slides a panel over the page — a bottom sheet on mobile,
-   * a side panel on desktop; "inline" mounts into `container`.
+   * "drawer" (default) slides a panel over the page (a bottom sheet on mobile,
+   * a side panel on desktop); "inline" mounts into `container`.
    */
   mode?: "drawer" | "inline";
   /** Target for inline mode: an element or a CSS selector. Required if inline. */
   container?: HTMLElement | string;
   /**
-   * Inline-mode height. "fill" (default) makes the iframe fill the container —
+   * Inline-mode height. "fill" (default) makes the iframe fill the container;
    * just size the container with your own CSS, like an embedded video. "auto"
    * grows the iframe to the app's content height (via vy:resize). Or pass a CSS
    * length such as "640px".
@@ -72,7 +80,7 @@ export interface VerifyOptions {
 }
 
 export interface VerifyResult {
-  /** Confirmation token (vyt) — the partner verifies this server-side. */
+  /** Confirmation token (vyt). The partner verifies this server-side. */
   token: string | null;
   /** Verdict from vyc: true = approved (1), false = denied (0), null if absent. */
   approved: boolean | null;
@@ -232,7 +240,7 @@ export function verify(opts: VerifyOptions): VerifySession {
         if (iframe.clientHeight === 0) {
           iframe.style.height = "600px";
           console.warn(
-            'VerifyYou: inline container has no height — give it a CSS height, ' +
+            'VerifyYou: inline container has no height; give it a CSS height, ' +
               'or use inlineHeight: "auto". Falling back to 600px.',
           );
         }

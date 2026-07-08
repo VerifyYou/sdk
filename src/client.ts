@@ -6,7 +6,7 @@ import { VERDICT_CODE_PARAM, VERDICT_TOKEN_PARAM } from "./protocol";
 export type VerifyMode = "redirect" | "iframe";
 
 /**
- * Unified verification result for both flows. `verified` is a UI hint only —
+ * Unified verification result for both flows. `verified` is a UI hint only;
  * always confirm `token` on your backend (`GET /v3/confirmations/{token}`).
  */
 export interface VyResult {
@@ -23,14 +23,22 @@ export interface InitConfig {
   publishableKey: string;
   /**
    * "redirect" (default) navigates the user to the hosted flow; "iframe" embeds
-   * it in place. This is the opt-in — leave it off to keep the legacy redirect.
+   * it in place. This is the opt-in; leave it off to keep the legacy redirect.
    */
   mode?: VerifyMode;
   /** connect-service origin. Defaults to the build-time CONNECT_BASE. */
   connectBase?: string;
-  /** Host origin reported to connect-service. Defaults to `location.origin`. */
+  /**
+   * @deprecated Configure the redirect URL on the verification in the Connect
+   * portal instead. Still accepted and sent as a fallback for verifications
+   * without a saved redirect URL. Defaults to `location.origin`.
+   */
   origin?: string;
-  /** Return path on the host origin. Defaults to "/". */
+  /**
+   * @deprecated Configure the redirect URL on the verification in the Connect
+   * portal instead. Still accepted and sent as a fallback for verifications
+   * without a saved redirect URL. Defaults to "/".
+   */
   returnPath?: string;
 
   // --- iframe presentation (ignored in redirect mode) ---

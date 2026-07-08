@@ -44,11 +44,16 @@ describeIfSpec("/v3/initialize contract (connect-service OpenAPI)", () => {
     expect(op).toBeDefined();
   });
 
-  it("accepts the request fields the SDK sends (origin, return_path)", () => {
+  // origin/return_path are deliberately hidden from the schema (legacy fallback
+  // fields the server still accepts — the verification's saved redirect URL is
+  // the documented path). This pins that they stay hidden; the server accepting
+  // them is covered by connect-service's own route tests.
+  it("keeps the legacy redirect fields (origin, return_path) out of the schema", () => {
     const req = deref(op!.requestBody.content["application/json"].schema);
-    expect(Object.keys(req.properties ?? {})).toEqual(
-      expect.arrayContaining(["origin", "return_path"]),
-    );
+    const keys = Object.keys(req.properties ?? {});
+    expect(keys).not.toContain("origin");
+    expect(keys).not.toContain("return_path");
+    expect(keys).not.toContain("start_path");
   });
 
   it("returns the `url` the SDK reads from the response", () => {
