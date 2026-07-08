@@ -1,8 +1,8 @@
 {
   "name": "@verifyyou-sdk/client",
-  "version": "0.2.0-beta.0",
-  "description": "VerifyYou browser SDK: redirect + opt-in iframe verification flow (beta).",
-  "license": "UNLICENSED",
+  "version": "0.2.0",
+  "description": "VerifyYou browser SDK: redirect + opt-in iframe verification flow.",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -22,8 +22,7 @@
   ],
   "sideEffects": false,
   "publishConfig": {
-    "access": "public",
-    "tag": "beta"
+    "access": "public"
   },
   "scripts": {
     "dev": "vite",

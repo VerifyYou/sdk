@@ -23,13 +23,14 @@ export const API_BASE: string =
 
 /**
  * Connect-service origin the SDK calls to start a flow from a publishable key
- * (`POST /v3/initialize`). Override with `VITE_VERIFYYOU_CONNECT_BASE`; the
- * local default matches connect-service's dev server. The app-fe origin used
- * for the iframe + postMessage check is derived from the URL that endpoint
- * returns, so it is not configured here.
+ * (`POST /v3/initialize`). The default is production — this is what ships in
+ * the npm artifact. For local dev set `VITE_VERIFYYOU_CONNECT_BASE` (e.g.
+ * http://localhost:8090) or pass `connectBase` to init(). The app-fe origin
+ * used for the iframe + postMessage check is derived from the URL that
+ * endpoint returns, so it is not configured here.
  */
 export const CONNECT_BASE: string =
-  import.meta.env.VITE_VERIFYYOU_CONNECT_BASE ?? "http://localhost:8090";
+  import.meta.env.VITE_VERIFYYOU_CONNECT_BASE ?? "https://trust.verifyyou.com";
 
 /** Well-known JWKS endpoint holding the EdDSA public keys (by `kid`). */
 export const JWKS_URL: string =
