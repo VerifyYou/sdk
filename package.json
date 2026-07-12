@@ -1,6 +1,6 @@
 {
   "name": "@verifyyou-sdk/client",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "VerifyYou browser SDK: redirect + opt-in iframe verification flow.",
   "license": "MIT",
   "type": "module",
