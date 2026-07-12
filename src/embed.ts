@@ -52,6 +52,14 @@ export interface VerifyOptions {
    */
   returnPath?: string;
   /**
+   * Per-run verification-config override, forwarded verbatim to
+   * `/v3/initialize` (connect never merges it with the stored config).
+   * Test-mode only: connect-service rejects it on live keys ("config requires
+   * a test key"). The shape is validated server-side, hence the loose type
+   * until the generated types pick it up from connect's spec.
+   */
+  config?: Record<string, unknown>;
+  /**
    * Prefill the login step (best-effort, UI only). A publishable key can't bind
    * identity server-side; that needs a secret key from the partner backend.
    */
@@ -410,6 +418,7 @@ export function verify(opts: VerifyOptions): VerifySession {
     publishableKey: opts.publishableKey,
     origin: opts.origin,
     returnPath: opts.returnPath,
+    config: opts.config,
     connectBase,
   })
     .then((rawUrl) => {

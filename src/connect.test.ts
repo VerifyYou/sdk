@@ -55,6 +55,34 @@ describe("initialize() — POST /v3/initialize", () => {
     expect(JSON.parse(init.body as string)).toEqual({ origin: "https://x.com", return_path: "/" });
   });
 
+  it("sends a provided config verbatim (per-run override, test keys only)", async () => {
+    const fetchMock = mockFetch({ body: { url: "https://x/y" } });
+    const config = { skip_check: true, identity: { mode: "anonymous" } };
+    await initialize({
+      publishableKey: "pk_test_x",
+      connectBase: "http://localhost:8090",
+      origin: "https://x.com",
+      config,
+    });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({
+      origin: "https://x.com",
+      return_path: "/",
+      config,
+    });
+  });
+
+  it("omits the config key entirely when none is provided", async () => {
+    const fetchMock = mockFetch({ body: { url: "https://x/y" } });
+    await initialize({
+      publishableKey: "pk_test_x",
+      connectBase: "http://localhost:8090",
+      origin: "https://x.com",
+    });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(Object.keys(JSON.parse(init.body as string))).not.toContain("config");
+  });
+
   it("throws when connect-service rejects the key (HTTP 401)", async () => {
     mockFetch({ ok: false, status: 401, body: {} });
     await expect(

@@ -10,10 +10,11 @@ const APP_URL = "https://app.localhost/verification/abc";
 const APP_ORIGIN = "https://app.localhost";
 
 function mockInitialize(url = APP_URL) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ url }) }),
-  );
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue({ ok: true, status: 200, json: async () => ({ url }) });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 afterEach(() => {
@@ -73,6 +74,24 @@ describe("verify() iframe flow", () => {
       vyc: "1",
       redirectUrl: "https://shop/return?vyt=tok_9&vyc=1",
     });
+  });
+
+  it("forwards a per-run config override to /v3/initialize", async () => {
+    const fetchMock = mockInitialize();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const config = { skip_check: true, identity: { mode: "anonymous" } };
+    const session = verify({
+      publishableKey: "pk_test_1",
+      connectBase: "http://localhost:8090",
+      mode: "inline",
+      container,
+      config,
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string).config).toEqual(config);
+    session.close(); // teardown listeners
   });
 
   it("ignores vy:complete from a foreign origin (postMessage spoofing guard)", async () => {

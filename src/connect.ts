@@ -15,6 +15,14 @@ export interface InitializeParams {
    * without a saved redirect URL. Defaults to "/".
    */
   returnPath?: string;
+  /**
+   * Per-run verification-config override, sent verbatim as the request's
+   * `config` field (connect never merges it with the stored config). Test-mode
+   * only: connect-service rejects it on live keys ("config requires a test
+   * key"). The shape is validated server-side, hence the loose type until the
+   * generated types pick it up from connect's spec.
+   */
+  config?: Record<string, unknown>;
   /** connect-service origin. Defaults to the build-time CONNECT_BASE. */
   connectBase?: string;
 }
@@ -35,6 +43,7 @@ export async function initialize(params: InitializeParams): Promise<string> {
     body: JSON.stringify({
       origin: params.origin ?? location.origin,
       return_path: params.returnPath ?? "/",
+      ...(params.config !== undefined && { config: params.config }),
     }),
   });
   if (!res.ok) {

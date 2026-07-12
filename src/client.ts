@@ -40,6 +40,15 @@ export interface InitConfig {
    * without a saved redirect URL. Defaults to "/".
    */
   returnPath?: string;
+  /**
+   * Per-run verification-config override, forwarded verbatim to
+   * `/v3/initialize` (connect never merges it with the stored config).
+   * Test-mode only: connect-service rejects it on live keys ("config requires
+   * a test key"). Overridable per call via vycheck({ config }). The shape is
+   * validated server-side, hence the loose type until the generated types
+   * pick it up from connect's spec.
+   */
+  config?: Record<string, unknown>;
 
   // --- iframe presentation (ignored in redirect mode) ---
   /** "drawer" (default) overlays the page; "inline" mounts into `container`. */
@@ -101,6 +110,7 @@ export async function vycheck(overrides?: VyCheckOptions): Promise<VyResult> {
       publishableKey: cfg.publishableKey,
       origin: cfg.origin,
       returnPath: cfg.returnPath,
+      config: cfg.config,
       connectBase: cfg.connectBase,
       email: cfg.email,
       phone: cfg.phone,
@@ -124,6 +134,7 @@ export async function vycheck(overrides?: VyCheckOptions): Promise<VyResult> {
     publishableKey: cfg.publishableKey,
     origin: cfg.origin,
     returnPath: cfg.returnPath,
+    config: cfg.config,
     connectBase: cfg.connectBase,
   });
   window.location.assign(url);
