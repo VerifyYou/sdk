@@ -57,6 +57,9 @@ export interface InitConfig {
   container?: HTMLElement | string;
   /** Inline height: "fill" (default), "auto", or a CSS length like "640px". */
   inlineHeight?: "fill" | "auto" | (string & {});
+  /** Drawer color scheme: "auto" (default) follows the host page's
+   *  color-scheme, falling back to the OS preference. */
+  theme?: "light" | "dark" | "auto";
   /** Prefill the login step (UI only; identity binding needs a secret key). */
   email?: string;
   phone?: string;
@@ -117,6 +120,7 @@ export async function vycheck(overrides?: VyCheckOptions): Promise<VyResult> {
       mode: cfg.display ?? "drawer",
       container: cfg.container,
       inlineHeight: cfg.inlineHeight,
+      theme: cfg.theme,
       onClose: cfg.onClose,
       // onComplete handled here so we hand back the unified VyResult shape.
     });

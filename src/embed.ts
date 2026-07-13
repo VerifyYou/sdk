@@ -79,6 +79,13 @@ export interface VerifyOptions {
    * length such as "640px".
    */
   inlineHeight?: "fill" | "auto" | (string & {});
+  /**
+   * Drawer color scheme. "auto" (default) follows the host page's effective
+   * `color-scheme` (so class-toggled dark modes are respected), falling back
+   * to the OS `prefers-color-scheme`. Only themes the drawer chrome shown
+   * while the flow loads — the embedded app colors itself.
+   */
+  theme?: "light" | "dark" | "auto";
   /** connect-service origin. Defaults to the build-time CONNECT_BASE. */
   connectBase?: string;
   /** Fired (in addition to the returned promise resolving) on completion. */
@@ -147,6 +154,12 @@ function createIframe(): HTMLIFrameElement {
 const NARROW_QUERY = "(max-width: 640px)";
 const DRAWER_EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 
+// Card surface shown behind the iframe until the app paints. The dark value
+// matches app-fe's dark boot background (#0d0f12) so card → first app paint is
+// seamless; without a dark surface the drawer is a white flash over dark hosts.
+const CARD_LIGHT = "#fff";
+const CARD_DARK = "#0d0f12";
+
 const SCRIM_STYLE: Partial<CSSStyleDeclaration> = {
   position: "fixed",
   inset: "0",
@@ -156,11 +169,23 @@ const SCRIM_STYLE: Partial<CSSStyleDeclaration> = {
   transition: "opacity 320ms ease",
 };
 
+// "auto": the host page's declared color-scheme wins (class-based dark modes
+// like next-themes set it on <html>, and it reflects a manual toggle the OS
+// preference can't see); an absent/both-schemes value falls back to the OS.
+function resolveDark(theme: VerifyOptions["theme"]): boolean {
+  if (theme === "dark") return true;
+  if (theme === "light") return false;
+  const scheme = getComputedStyle(document.documentElement).colorScheme || "";
+  const dark = scheme.includes("dark");
+  if (dark !== scheme.includes("light")) return dark;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
 // Position/size for the open drawer; the enter/exit slide is a transform on top.
-function drawerCardStyle(narrow: boolean): Partial<CSSStyleDeclaration> {
+function drawerCardStyle(narrow: boolean, dark: boolean): Partial<CSSStyleDeclaration> {
   const base: Partial<CSSStyleDeclaration> = {
     position: "fixed",
-    background: "#fff",
+    background: dark ? CARD_DARK : CARD_LIGHT,
     overflow: "hidden",
     boxShadow: "0 24px 64px rgba(0,0,0,0.35)",
     zIndex: "2147483647",
@@ -283,8 +308,9 @@ export function verify(opts: VerifyOptions): VerifySession {
     assign(scrim, SCRIM_STYLE);
 
     const card = document.createElement("div");
+    const dark = resolveDark(opts.theme);
     let narrow = window.matchMedia(NARROW_QUERY).matches;
-    assign(card, drawerCardStyle(narrow));
+    assign(card, drawerCardStyle(narrow, dark));
     card.style.transform = hiddenTransform(narrow);
     card.style.transition = `transform 360ms ${DRAWER_EASE}`;
 
@@ -314,7 +340,7 @@ export function verify(opts: VerifyOptions): VerifySession {
     const mq = window.matchMedia(NARROW_QUERY);
     const onBreakpoint = () => {
       narrow = mq.matches;
-      assign(card, drawerCardStyle(narrow));
+      assign(card, drawerCardStyle(narrow, dark));
       card.style.transform = "none"; // resting: no transform (see settleOpen)
     };
     mq.addEventListener("change", onBreakpoint);

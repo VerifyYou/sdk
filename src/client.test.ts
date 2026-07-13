@@ -75,6 +75,34 @@ describe("vycheck() — config passthrough to /v3/initialize", () => {
     expect(Object.keys(sentBody(fetchMock))).not.toContain("config");
   });
 
+  it("iframe drawer honors the init-time theme (rides through verify())", async () => {
+    mockInitialize();
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    );
+    init({
+      publishableKey: "pk_test_1",
+      connectBase: "http://localhost:8090",
+      mode: "iframe",
+      theme: "dark",
+    });
+    const check = vycheck();
+    const card = document.body.lastElementChild?.lastElementChild as HTMLElement;
+    expect(card.style.background).toBe("rgb(13, 15, 18)");
+    // Settle the pending session so its message listener doesn't leak.
+    await vi.waitFor(() => {
+      if (!document.querySelector("iframe")?.src) throw new Error("iframe not pointed yet");
+    });
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://app.localhost",
+        data: { type: "vy:close" },
+      }),
+    );
+    await check;
+  });
+
   it("iframe mode forwards the per-call config through verify()", async () => {
     const fetchMock = mockInitialize();
     const container = document.createElement("div");
