@@ -186,14 +186,37 @@ export function init(cfg: InitConfig): void {
   config = cfg;
 }
 
+/** A vycheck() call: awaitable for the result, with `close()` to tear the
+ *  embed down early. `close()` is a no-op in redirect mode (the page unloads). */
+export interface VyCheckHandle extends Promise<VyResult> {
+  /** Dismiss an inline/drawer embed before it completes; resolves the promise
+   *  as an empty (cancelled) result. No-op once the run has settled. */
+  close(): void;
+}
+
 /**
  * Start verification.
  * - redirect mode (default): navigates to the hosted flow; the returned promise
  *   never resolves because the page unloads. On return, read it with vyget().
  * - iframe mode: mounts the embedded flow, resolves with the result, fires
- *   onComplete, and caches it so vyget() returns it too.
+ *   onComplete, and caches it so vyget() returns it too. Call `close()` on the
+ *   returned handle to tear the embed down early (e.g. before a relaunch).
  */
-export async function vycheck(overrides?: VyCheckOptions): Promise<VyResult> {
+export function vycheck(overrides?: VyCheckOptions): VyCheckHandle {
+  // vycheck() is sync (so it can hand back a close() handle), but validation
+  // errors should still surface as a rejected promise the way the old async
+  // version did — never a synchronous throw the caller has to try/catch around.
+  try {
+    return runCheck(overrides);
+  } catch (err) {
+    const handle = Promise.reject(err) as VyCheckHandle;
+    handle.close = () => {};
+    void handle.catch(() => {});
+    return handle;
+  }
+}
+
+function runCheck(overrides?: VyCheckOptions): VyCheckHandle {
   const cfg = { ...ensureConfig(), ...overrides };
   const mode = cfg.mode ?? "redirect";
   // A bare session id (from a server-side /v3/initialize) skips our own
@@ -205,7 +228,7 @@ export async function vycheck(overrides?: VyCheckOptions): Promise<VyResult> {
       : undefined;
 
   if (mode === "iframe") {
-    const result = await verify({
+    const session = verify({
       // A pre-initialized session URL is mounted as-is; otherwise verify()
       // exchanges the publishable key via /v3/initialize.
       sessionUrl,
@@ -223,29 +246,39 @@ export async function vycheck(overrides?: VyCheckOptions): Promise<VyResult> {
       onClose: cfg.onClose,
       // onComplete handled here so we hand back the unified VyResult shape.
     });
-    const vy = toVyResult(result);
-    // verify() also resolves (empty) on dismiss; only treat a real verdict as a
-    // completion (onClose has already fired for the dismiss case).
-    if (vy.token != null || vy.vyc != null) {
-      lastResult = vy;
-      cfg.onComplete?.(vy);
-    }
-    return vy;
+    const handle = session.then((result) => {
+      const vy = toVyResult(result);
+      // verify() also resolves (empty) on dismiss; only treat a real verdict as
+      // a completion (onClose has already fired for the dismiss case).
+      if (vy.token != null || vy.vyc != null) {
+        lastResult = vy;
+        cfg.onComplete?.(vy);
+      }
+      return vy;
+    }) as VyCheckHandle;
+    handle.close = () => session.close();
+    void handle.catch(() => {}); // callers may use onComplete only
+    return handle;
   }
 
   // redirect display: navigate straight to a pre-initialized session URL, or
   // exchange the publishable key via /v3/initialize first.
-  const url =
-    sessionUrl ??
-    (await initialize({
-      publishableKey: cfg.publishableKey,
-      origin: cfg.origin,
-      returnPath: cfg.returnPath,
-      config: cfg.config,
-      connectBase: cfg.connectBase,
-    }));
-  window.location.assign(url);
-  return new Promise<VyResult>(() => {}); // page is navigating away
+  const handle = (async () => {
+    const url =
+      sessionUrl ??
+      (await initialize({
+        publishableKey: cfg.publishableKey,
+        origin: cfg.origin,
+        returnPath: cfg.returnPath,
+        config: cfg.config,
+        connectBase: cfg.connectBase,
+      }));
+    window.location.assign(url);
+    return new Promise<VyResult>(() => {}); // page is navigating away
+  })() as VyCheckHandle;
+  handle.close = () => {}; // nothing to tear down; the page is navigating away
+  void handle.catch(() => {});
+  return handle;
 }
 
 /**

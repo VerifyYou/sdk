@@ -7,4 +7,4 @@ export type { VerifyYouErrorCode } from "./errors";
 // preloading external_id / a bound identity), pass vycheck({ session }) with
 // the returned session_id.
 export { init, vycheck, vyget } from "./client";
-export type { InitConfig, VyCheckOptions, VyResult, VerifyMode } from "./client";
+export type { InitConfig, VyCheckOptions, VyCheckHandle, VyResult, VerifyMode } from "./client";

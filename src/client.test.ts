@@ -197,4 +197,19 @@ describe("vycheck({ session }) — open a session by id", () => {
     init({ publishableKey: "pk_test_1", mode: "iframe" });
     await expect(vycheck({ session: "   " })).rejects.toThrow(/non-empty session id/);
   });
+
+  it("close() tears down the inline embed and resolves as cancelled", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    init({ publishableKey: "pk_test_1", mode: "iframe", display: "inline", container });
+    const handle = vycheck({ session: "sess_close" });
+    await vi.waitFor(() => {
+      if (!container.querySelector("iframe")?.getAttribute("src")) throw new Error("not mounted");
+    });
+    handle.close();
+    await expect(handle).resolves.toEqual({ token: null, verified: false, vyc: null });
+    await vi.waitFor(() => {
+      if (container.querySelector("iframe")) throw new Error("iframe still mounted");
+    });
+  });
 });
