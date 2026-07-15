@@ -120,3 +120,81 @@ describe("vycheck() — config passthrough to /v3/initialize", () => {
     expect(sentBody(fetchMock).config).toEqual(config);
   });
 });
+
+// vycheck({ session }) is the recommended way to hand the SDK a server-minted
+// session: the caller passes only the opaque `session_id` from a secret-key
+// /v3/initialize, and the SDK builds the hosted URL against its own
+// VerifyYou-locked appBase. The id is data, never an origin — so a host page
+// embedding the SDK can't steer the iframe to a look-alike VerifyYou.
+describe("vycheck({ session }) — open a session by id", () => {
+  beforeEach(() => window.history.replaceState({}, "", "/"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+  });
+
+  it("iframe display builds the hosted URL from the default app origin and skips /v3/initialize", async () => {
+    const fetchMock = vi.fn(); // no network: the session is already initialized
+    vi.stubGlobal("fetch", fetchMock);
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    init({ publishableKey: "pk_test_1", mode: "iframe", display: "inline", container });
+
+    const result = vycheck({ session: "sess_abc" });
+    await vi.waitFor(() => {
+      if (!container.querySelector("iframe")?.getAttribute("src")) throw new Error("not mounted");
+    });
+    const iframe = container.querySelector("iframe") as HTMLIFrameElement;
+    expect(iframe.src).toContain("https://app.verifyyou.com/verification?vys=sess_abc");
+    expect(iframe.src).toContain("vy_embed=1");
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://app.verifyyou.com",
+        data: { type: "vy:complete", vyt: "tok_s", vyc: "1" },
+      }),
+    );
+    await expect(result).resolves.toEqual({ token: "tok_s", verified: true, vyc: "1" });
+  });
+
+  it("redirect display navigates to the URL built from the session id", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign, search: "" });
+    init({ publishableKey: "pk_test_1" }); // default redirect mode
+    void vycheck({ session: "sess_xyz" }).catch(() => {});
+    await vi.waitFor(() => expect(assign).toHaveBeenCalledOnce());
+    expect(assign).toHaveBeenCalledWith("https://app.verifyyou.com/verification?vys=sess_xyz");
+  });
+
+  it("honors a per-call appBase override (localhost for dev)", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    init({ publishableKey: "pk_test_1", mode: "iframe", display: "inline", container });
+    const check = vycheck({ session: "sess_1", appBase: "http://localhost:5173" });
+    await vi.waitFor(() => {
+      if (!container.querySelector("iframe")?.getAttribute("src")) throw new Error("not mounted");
+    });
+    const iframe = container.querySelector("iframe") as HTMLIFrameElement;
+    expect(iframe.src).toContain("http://localhost:5173/verification?vys=sess_1");
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "http://localhost:5173",
+        data: { type: "vy:close" },
+      }),
+    );
+    await check;
+  });
+
+  it("rejects an appBase that is not a VerifyYou origin", async () => {
+    init({ publishableKey: "pk_test_1", mode: "iframe" });
+    await expect(
+      vycheck({ session: "sess_1", appBase: "https://evil.example.com" }),
+    ).rejects.toThrow(/VerifyYou verification URL/);
+  });
+
+  it("rejects an empty session id", async () => {
+    init({ publishableKey: "pk_test_1", mode: "iframe" });
+    await expect(vycheck({ session: "   " })).rejects.toThrow(/non-empty session id/);
+  });
+});

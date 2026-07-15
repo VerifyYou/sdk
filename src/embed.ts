@@ -37,8 +37,20 @@ import {
  */
 
 export interface VerifyOptions {
-  /** Publishable key (`pk_test_*` / `pk_live_*`) identifying the customer. */
-  publishableKey: string;
+  /**
+   * Publishable key (`pk_test_*` / `pk_live_*`) identifying the customer. The
+   * SDK exchanges it for a hosted URL via `/v3/initialize`. Required UNLESS
+   * `sessionUrl` is given (a pre-initialized session skips that call).
+   */
+  publishableKey?: string;
+  /**
+   * A hosted verification URL from a server-side `POST /v3/initialize` (secret
+   * key). When set, the SDK skips its own initialize and mounts THIS url as-is
+   * — preloaded config / `external_id` / bound identity all come from that
+   * server call, so no publishable key or per-run values are needed here.
+   * Exactly one of `publishableKey` / `sessionUrl` must be provided.
+   */
+  sessionUrl?: string;
   /**
    * @deprecated Configure the redirect URL on the verification in the Connect
    * portal instead. Still accepted and sent as a fallback for verifications
@@ -225,9 +237,12 @@ function assign(el: HTMLElement, style: Partial<CSSStyleDeclaration>): void {
 }
 
 /**
- * Start an embedded verification flow from a publishable key. Returns a thenable
- * session that resolves with the verdict once the app posts `vy:complete` (and
- * exposes `close()`). Rejects if the initialize call fails.
+ * Start an embedded verification flow — either from a publishable key (the SDK
+ * calls `/v3/initialize`) or from a `sessionUrl` already returned by a
+ * server-side initialize (mounted as-is). Returns a thenable session that
+ * resolves with the verdict once the app posts `vy:complete` (and exposes
+ * `close()`). Rejects if the initialize call fails, or if neither
+ * `publishableKey` nor `sessionUrl` is given.
  */
 export function verify(opts: VerifyOptions): VerifySession {
   const connectBase = opts.connectBase ?? CONNECT_BASE;
@@ -438,15 +453,25 @@ export function verify(opts: VerifyOptions): VerifySession {
     rejectFn(err);
   }
 
-  // Kick off init, then point the iframe at the returned URL.
+  // Resolve the hosted URL, then point the iframe at it: use a caller-supplied
+  // pre-initialized session URL as-is, otherwise exchange the publishable key
+  // via /v3/initialize.
   window.addEventListener("message", onMessage);
-  initialize({
-    publishableKey: opts.publishableKey,
-    origin: opts.origin,
-    returnPath: opts.returnPath,
-    config: opts.config,
-    connectBase,
-  })
+  const urlPromise =
+    opts.sessionUrl != null
+      ? Promise.resolve(opts.sessionUrl)
+      : opts.publishableKey != null
+        ? initialize({
+            publishableKey: opts.publishableKey,
+            origin: opts.origin,
+            returnPath: opts.returnPath,
+            config: opts.config,
+            connectBase,
+          })
+        : Promise.reject(
+            new Error("VerifyYou: verify() needs either a publishableKey or a sessionUrl"),
+          );
+  urlPromise
     .then((rawUrl) => {
       if (settled) return; // closed before init resolved
       const built = withEmbedParams(rawUrl, opts);

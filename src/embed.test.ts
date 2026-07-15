@@ -54,6 +54,31 @@ describe("verify() iframe flow", () => {
     }
   });
 
+  it("mounts a caller-supplied sessionUrl as-is and never calls /v3/initialize", async () => {
+    const fetchMock = mockInitialize(); // must NOT be hit for a pre-initialized session
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const session = verify({ sessionUrl: APP_URL, mode: "inline", container });
+    const iframe = await vi.waitFor(() => {
+      const el = container.querySelector("iframe");
+      if (!el || !el.getAttribute("src")) throw new Error("iframe not mounted with src yet");
+      return el as HTMLIFrameElement;
+    });
+    const src = new URL(iframe.src);
+    expect(src.origin + src.pathname).toBe(APP_URL);
+    expect(src.searchParams.get("vy_embed")).toBe("1"); // embed params still appended
+    expect(src.searchParams.get("vy_origin")).toBe(location.origin);
+    expect(fetchMock).not.toHaveBeenCalled();
+    session.close();
+  });
+
+  it("rejects when neither publishableKey nor sessionUrl is provided", async () => {
+    mockInitialize();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    await expect(verify({ mode: "inline", container })).rejects.toThrow(/publishableKey or a sessionUrl/);
+  });
+
   it("resolves with the verdict when app-fe posts vy:complete from the app origin", async () => {
     mockInitialize();
     const { session } = await mountInline();

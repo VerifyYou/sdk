@@ -1,3 +1,4 @@
+import { API_BASE, APP_BASE, CONNECT_BASE } from "./config";
 import { initialize } from "./connect";
 import { verify } from "./embed";
 import type { VerifyResult } from "./embed";
@@ -28,6 +29,12 @@ export interface InitConfig {
   mode?: VerifyMode;
   /** connect-service origin. Defaults to the build-time CONNECT_BASE. */
   connectBase?: string;
+  /**
+   * app-fe origin the SDK builds a hosted URL against when you open a session by
+   * id (`vycheck({ session })`). Defaults to the build-time APP_BASE. Must be a
+   * VerifyYou origin — the SDK rejects anything else.
+   */
+  appBase?: string;
   /**
    * @deprecated Configure the redirect URL on the verification in the Connect
    * portal instead. Still accepted and sent as a fallback for verifications
@@ -73,7 +80,19 @@ export interface InitConfig {
 
 /** Per-call overrides for vycheck(); anything here overrides the init config
  *  (except the publishable key and mode, which are fixed at init). */
-export type VyCheckOptions = Partial<Omit<InitConfig, "publishableKey" | "mode">>;
+export type VyCheckOptions = Partial<Omit<InitConfig, "publishableKey" | "mode">> & {
+  /**
+   * Open a session already created server-side, by its id. Pass the `session_id`
+   * a `POST /v3/initialize` (SECRET key) returned — the only way to preload
+   * `external_id` or a bound identity. The id is opaque data; the SDK builds the
+   * hosted URL against its own VerifyYou-locked `appBase`, so a caller can never
+   * steer the iframe to another origin. When set, vycheck SKIPS its own
+   * initialize and opens THAT session (the init() publishable key goes unused).
+   * Works in iframe display (the primary case); with `mode: "redirect"` it
+   * navigates straight to the built URL.
+   */
+  session?: string;
+};
 
 const TOKEN_PARAM = VERDICT_TOKEN_PARAM;
 const VERDICT_PARAM = VERDICT_CODE_PARAM;
@@ -92,6 +111,76 @@ function toVyResult(r: VerifyResult): VyResult {
   return { token: r.token, verified: r.vyc === "1", vyc: r.vyc };
 }
 
+function isLocalHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]"
+  );
+}
+
+// Registrable domain, good enough for our simple two-label apexes
+// (verifyyou.com / verifyyou.io) — no public-suffix list needed.
+function registrableDomain(base: string): string | null {
+  try {
+    const { hostname } = new URL(base);
+    const parts = hostname.split(".");
+    return parts.length <= 2 ? hostname : parts.slice(-2).join(".");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guard the hosted URL the SDK builds for `vycheck({ session })`. The origin
+ * comes from `appBase` (SDK-owned, never the caller), but an appBase override to
+ * a non-VerifyYou host would silently mount a look-alike — so re-check it here.
+ * The allowlist is the registrable domain of the configured connect/api origins
+ * (plus any per-init connectBase override), with localhost permitted for dev.
+ */
+function assertVerifyYouUrl(rawUrl: string, connectBase?: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error("VerifyYou: appBase must be an absolute VerifyYou URL");
+  }
+  const local = isLocalHost(parsed.hostname);
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && local)) {
+    throw new Error("VerifyYou: appBase must be an https VerifyYou URL");
+  }
+  const allowed = [CONNECT_BASE, API_BASE, connectBase]
+    .filter((b): b is string => b != null)
+    .map(registrableDomain)
+    .filter((d): d is string => d != null);
+  const ok =
+    local || allowed.some((d) => parsed.hostname === d || parsed.hostname.endsWith(`.${d}`));
+  if (!ok) {
+    throw new Error(
+      `VerifyYou: appBase must be a VerifyYou verification URL (got ${parsed.origin})`,
+    );
+  }
+  return parsed.toString();
+}
+
+/**
+ * Build the hosted verification URL for a server-minted session id. The origin
+ * comes from the SDK's own (VerifyYou-locked) `appBase`, never the caller — the
+ * session id is opaque data — and the finished URL is still run through
+ * assertVerifyYouUrl so an appBase override to a non-VerifyYou host fails loudly
+ * instead of mounting a look-alike. The `?vys=` shape matches what
+ * `/v3/initialize` returns; app-fe reads it and calls `/verification/flow/load`.
+ */
+function sessionUrlFromId(sessionId: string, appBase: string, connectBase?: string): string {
+  const id = sessionId.trim();
+  if (!id) {
+    throw new Error("VerifyYou: vycheck({ session }) needs a non-empty session id");
+  }
+  const base = appBase.replace(/\/+$/, "");
+  return assertVerifyYouUrl(`${base}/verification?vys=${encodeURIComponent(id)}`, connectBase);
+}
+
 /** Store SDK configuration. Call once on page load. */
 export function init(cfg: InitConfig): void {
   config = cfg;
@@ -107,9 +196,19 @@ export function init(cfg: InitConfig): void {
 export async function vycheck(overrides?: VyCheckOptions): Promise<VyResult> {
   const cfg = { ...ensureConfig(), ...overrides };
   const mode = cfg.mode ?? "redirect";
+  // A bare session id (from a server-side /v3/initialize) skips our own
+  // initialize: the SDK builds the hosted URL against its VerifyYou-locked
+  // appBase, so the caller never supplies an origin to mount.
+  const sessionUrl =
+    cfg.session != null
+      ? sessionUrlFromId(cfg.session, cfg.appBase ?? APP_BASE, cfg.connectBase)
+      : undefined;
 
   if (mode === "iframe") {
     const result = await verify({
+      // A pre-initialized session URL is mounted as-is; otherwise verify()
+      // exchanges the publishable key via /v3/initialize.
+      sessionUrl,
       publishableKey: cfg.publishableKey,
       origin: cfg.origin,
       returnPath: cfg.returnPath,
@@ -134,13 +233,17 @@ export async function vycheck(overrides?: VyCheckOptions): Promise<VyResult> {
     return vy;
   }
 
-  const url = await initialize({
-    publishableKey: cfg.publishableKey,
-    origin: cfg.origin,
-    returnPath: cfg.returnPath,
-    config: cfg.config,
-    connectBase: cfg.connectBase,
-  });
+  // redirect display: navigate straight to a pre-initialized session URL, or
+  // exchange the publishable key via /v3/initialize first.
+  const url =
+    sessionUrl ??
+    (await initialize({
+      publishableKey: cfg.publishableKey,
+      origin: cfg.origin,
+      returnPath: cfg.returnPath,
+      config: cfg.config,
+      connectBase: cfg.connectBase,
+    }));
   window.location.assign(url);
   return new Promise<VyResult>(() => {}); // page is navigating away
 }
