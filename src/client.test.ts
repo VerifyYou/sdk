@@ -193,6 +193,25 @@ describe("vycheck({ session }) — open a session by id", () => {
     ).rejects.toThrow(/VerifyYou verification URL/);
   });
 
+  it("allows a private LAN appBase for phone-on-network dev testing", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    init({ publishableKey: "pk_test_1", mode: "iframe", display: "inline", container });
+    const check = vycheck({ session: "sess_1", appBase: "https://192.168.1.7:5173" });
+    await vi.waitFor(() => {
+      if (!container.querySelector("iframe")?.getAttribute("src")) throw new Error("not mounted");
+    });
+    const iframe = container.querySelector("iframe") as HTMLIFrameElement;
+    expect(iframe.src).toContain("https://192.168.1.7:5173/verification?vys=sess_1");
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://192.168.1.7:5173",
+        data: { type: "vy:close" },
+      }),
+    );
+    await check;
+  });
+
   it("rejects an empty session id", async () => {
     init({ publishableKey: "pk_test_1", mode: "iframe" });
     await expect(vycheck({ session: "   " })).rejects.toThrow(/non-empty session id/);

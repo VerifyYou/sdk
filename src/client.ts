@@ -111,12 +111,30 @@ function toVyResult(r: VerifyResult): VyResult {
   return { token: r.token, verified: r.vyc === "1", vyc: r.vyc };
 }
 
+// A dev host: loopback, *.localhost/*.local, or a private (RFC 1918) / link-local
+// LAN IP. LAN IPs cover phone-on-the-same-network testing (the app-fe served on
+// e.g. https://192.168.1.7:5173). All are non-routable from the internet, so
+// allowing them can't widen the VerifyYou-origin lock for a public page.
 function isLocalHost(hostname: string): boolean {
-  return (
+  if (
     hostname === "localhost" ||
     hostname.endsWith(".localhost") ||
     hostname === "127.0.0.1" ||
-    hostname === "[::1]"
+    hostname === "[::1]" ||
+    hostname === "::1" ||
+    hostname.endsWith(".local")
+  ) {
+    return true;
+  }
+  const octets = /^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(hostname);
+  if (!octets) return false;
+  const a = Number(octets[1]);
+  const b = Number(octets[2]);
+  return (
+    a === 10 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254)
   );
 }
 
