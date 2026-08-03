@@ -1,4 +1,12 @@
 name: Semgrep Security Scan
+
+# Self-contained rather than calling infra-common's reusable workflow:
+# this repo is public and infra-common is private, and GitHub only shares
+# private reusable workflows with other private/internal repos.
+#
+# Cloud reporting is handled by Semgrep Managed Scans (weekly + on PR),
+# so this job's only job is to fail the build on ERROR-severity findings.
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -8,14 +16,39 @@ on:
   schedule:
     - cron: '12 15 * * *'
 
+permissions:
+  contents: read
+
 jobs:
   semgrep:
-    uses: VerifyYou/infra-common/.github/workflows/reusable-semgrep.yml@v0.4.0
-    permissions:
-      contents: read
-      pull-requests: write
-      statuses: write
-      checks: write
-    with:
-      rule-packs: 'p/security-audit p/secrets p/typescript'
-    secrets: inherit
+    name: semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Semgrep
+        run: pipx install semgrep==1.161.0
+
+      - name: Run Semgrep scan
+        run: |
+          set -euo pipefail
+          semgrep --config=p/security-audit --config=p/secrets --config=p/typescript \
+                  --json --output=semgrep.json --error --quiet . || true
+
+          TOTAL=$(jq '.results | length' semgrep.json)
+          ERRORS=$(jq '[.results[] | select(.extra.severity == "ERROR")] | length' semgrep.json)
+          WARNINGS=$(jq '[.results[] | select(.extra.severity == "WARNING")] | length' semgrep.json)
+          INFOS=$(jq '[.results[] | select(.extra.severity == "INFO")] | length' semgrep.json)
+
+          echo "SEVERITY BREAKDOWN: ERROR=$ERRORS  WARNING=$WARNINGS  INFO=$INFOS  (TOTAL=$TOTAL)"
+
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "::group::All findings"
+            jq -r '.results[] | "- [\(.extra.severity)] \(.extra.message) — \(.path):\(.start.line)"' semgrep.json
+            echo "::endgroup::"
+          fi
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error title=Security findings::$ERRORS ERROR-severity finding(s). Fix before merging."
+            exit 1
+          fi
