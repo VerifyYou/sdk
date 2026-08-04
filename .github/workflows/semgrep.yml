@@ -69,3 +69,13 @@ jobs:
             echo "::error title=Security findings::$ERRORS ERROR-severity finding(s). Fix before merging."
             exit 1
           fi
+
+      # Reports code + Supply Chain findings centrally. Skips silently when the
+      # token is absent (e.g. pull requests from forks, where GitHub withholds
+      # secrets by design) so the gate above still runs.
+      - name: Report to Semgrep Cloud
+        if: env.SEMGREP_APP_TOKEN != ''
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: semgrep ci || true
+        continue-on-error: true
