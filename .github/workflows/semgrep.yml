@@ -1,11 +1,12 @@
 name: Semgrep Security Scan
 
-# Self-contained rather than calling infra-common's reusable workflow:
-# this repo is public and infra-common is private, and GitHub only shares
-# private reusable workflows with other private/internal repos.
+# Standalone by necessity: this repository is public, and GitHub does not allow
+# public repositories to consume reusable workflows from private ones — so the
+# shared internal scan workflow cannot be called from here. Keep this job
+# self-contained; switching it to a `uses:` reference will fail to resolve.
 #
-# Cloud reporting is handled by Semgrep Managed Scans (weekly + on PR),
-# so this job's only job is to fail the build on ERROR-severity findings.
+# Central reporting is handled by Semgrep managed scans, so this job's only
+# purpose is to fail the build on ERROR-severity findings.
 
 on:
   pull_request:
