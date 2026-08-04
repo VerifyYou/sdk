@@ -25,7 +25,11 @@ jobs:
     name: semgrep
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Nothing after this step needs git credentials, and this job runs
+          # third-party rule packs — don't leave a token in .git/config.
+          persist-credentials: false
 
       - name: Install Semgrep
         run: pipx install semgrep==1.161.0
@@ -33,8 +37,20 @@ jobs:
       - name: Run Semgrep scan
         run: |
           set -euo pipefail
+
+          # Deliberately no `--error`: let a non-zero exit mean "the scan did not
+          # complete", not "the scan found something". The gate below decides what
+          # blocks. This fails closed — a broken scan must not read as a clean one.
+          set +e
           semgrep --config=p/security-audit --config=p/secrets --config=p/typescript \
-                  --json --output=semgrep.json --error --quiet . || true
+                  --json --output=semgrep.json --quiet .
+          rc=$?
+          set -e
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error title=Scan incomplete::Semgrep exited $rc. Failing the check rather than reporting a clean scan."
+            exit 1
+          fi
 
           TOTAL=$(jq '.results | length' semgrep.json)
           ERRORS=$(jq '[.results[] | select(.extra.severity == "ERROR")] | length' semgrep.json)
