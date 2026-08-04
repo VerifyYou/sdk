@@ -1,0 +1,71 @@
+name: Semgrep Security Scan
+
+# Standalone by necessity: this repository is public, and GitHub does not allow
+# public repositories to consume reusable workflows from private ones — so the
+# shared internal scan workflow cannot be called from here. Keep this job
+# self-contained; switching it to a `uses:` reference will fail to resolve.
+#
+# Central reporting is handled by Semgrep managed scans, so this job's only
+# purpose is to fail the build on ERROR-severity findings.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+  schedule:
+    - cron: '12 15 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Nothing after this step needs git credentials, and this job runs
+          # third-party rule packs — don't leave a token in .git/config.
+          persist-credentials: false
+
+      - name: Install Semgrep
+        run: pipx install semgrep==1.161.0
+
+      - name: Run Semgrep scan
+        run: |
+          set -euo pipefail
+
+          # Deliberately no `--error`: let a non-zero exit mean "the scan did not
+          # complete", not "the scan found something". The gate below decides what
+          # blocks. This fails closed — a broken scan must not read as a clean one.
+          set +e
+          semgrep --config=p/security-audit --config=p/secrets --config=p/typescript \
+                  --json --output=semgrep.json --quiet .
+          rc=$?
+          set -e
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error title=Scan incomplete::Semgrep exited $rc. Failing the check rather than reporting a clean scan."
+            exit 1
+          fi
+
+          TOTAL=$(jq '.results | length' semgrep.json)
+          ERRORS=$(jq '[.results[] | select(.extra.severity == "ERROR")] | length' semgrep.json)
+          WARNINGS=$(jq '[.results[] | select(.extra.severity == "WARNING")] | length' semgrep.json)
+          INFOS=$(jq '[.results[] | select(.extra.severity == "INFO")] | length' semgrep.json)
+
+          echo "SEVERITY BREAKDOWN: ERROR=$ERRORS  WARNING=$WARNINGS  INFO=$INFOS  (TOTAL=$TOTAL)"
+
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "::group::All findings"
+            jq -r '.results[] | "- [\(.extra.severity)] \(.extra.message) — \(.path):\(.start.line)"' semgrep.json
+            echo "::endgroup::"
+          fi
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error title=Security findings::$ERRORS ERROR-severity finding(s). Fix before merging."
+            exit 1
+          fi
