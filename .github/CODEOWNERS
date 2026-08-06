@@ -1,2 +1,25 @@
 # Default owners — auto-requested as reviewers on every PR.
-* @EzekielEnns
+#
+# @VerifyYou/dev-team reaches every engineer rather than one person:
+#   - review-request delegation is OFF, so GitHub requests the whole team
+#     (no round-robin) and every member is notified;
+#   - a requested reviewer surfaces the PR in that member's Linear
+#     "Needs your review" queue;
+#   - GitHub never requests the PR author, so the author is excluded
+#     automatically — and, unlike a single named owner, someone is still
+#     requested when that person is the author.
+#
+# This is an auto-request mechanism, not an extra merge gate: the branch
+# ruleset requires 1 approval and does NOT require a code-owner approval,
+# so any one approval from a person with write access still clears merge.
+#
+# NOTE: a team is only a valid code owner if it is visible AND has write
+# access to this repo — org base permission does not count, and an invalid
+# entry is silently ignored. Both teams below were granted write on
+# 2026-08-06. Do not remove those grants.
+*                       @VerifyYou/dev-team
+
+# Sensitive paths — @VerifyYou/code-admins is added alongside the team.
+# Last matching pattern wins, so the team is repeated to keep it requested.
+/.github/CODEOWNERS     @VerifyYou/dev-team @VerifyYou/code-admins
+/.github/workflows/     @VerifyYou/dev-team @VerifyYou/code-admins
