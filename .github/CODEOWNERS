@@ -1,2 +1,14 @@
-# Default owners — auto-requested as reviewers on every PR.
-* @EzekielEnns
+# Code owners for sensitive paths only.
+#
+# There is deliberately NO `*` default owner. Ordinary PRs are not
+# auto-assigned a reviewer — the author requests @VerifyYou/dev-team on the
+# PR, and team code-review auto-assignment fans that single request out to
+# the individual members, which is what populates each member's Linear
+# "Needs your review" queue. See VY-359.
+#
+# NOTE: a team is only a valid code owner if it is visible AND has write
+# access to this repo — org base permission does not count, and an invalid
+# entry is silently ignored (the file looks correct and requests nobody).
+# @VerifyYou/code-admins was granted write on 2026-08-06; do not remove it.
+/.github/CODEOWNERS     @VerifyYou/code-admins
+/.github/workflows/     @VerifyYou/code-admins
