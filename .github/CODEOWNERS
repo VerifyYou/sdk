@@ -6,6 +6,10 @@
 # the individual members, which is what populates each member's Linear
 # "Needs your review" queue. See VY-359.
 #
+# Because there is no default owner, enabling "require review from Code
+# Owners" costs nothing on ordinary PRs: a file with no owner needs no
+# code-owner approval. It binds only on the paths below.
+#
 # NOTE: a team is only a valid code owner if it is visible AND has write
 # access to this repo — org base permission does not count, and an invalid
 # entry is silently ignored (the file looks correct and requests nobody).
