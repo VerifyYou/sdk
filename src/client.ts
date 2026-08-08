@@ -20,8 +20,13 @@ export interface VyResult {
 }
 
 export interface InitConfig {
-  /** Publishable key (`pk_test_*` / `pk_live_*`). Safe in the browser. */
-  publishableKey: string;
+  /**
+   * Publishable key (`pk_test_*` / `pk_live_*`). Safe in the browser. Only
+   * needed when the SDK starts the run itself — opening a server-made session
+   * with `vycheck({ session })` never uses it, because your backend already
+   * authenticated that call with the secret key.
+   */
+  publishableKey?: string;
   /**
    * "redirect" (default) navigates the user to the hosted flow; "iframe" embeds
    * it in place. This is the opt-in; leave it off to keep the legacy redirect.
@@ -78,18 +83,18 @@ export interface InitConfig {
   onClose?: () => void;
 }
 
-/** Per-call overrides for vycheck(); anything here overrides the init config
- *  (except the publishable key and mode, which are fixed at init). */
-export type VyCheckOptions = Partial<Omit<InitConfig, "publishableKey" | "mode">> & {
+/** Per-call overrides for vycheck(); anything here overrides the init config. */
+export type VyCheckOptions = Partial<InitConfig> & {
   /**
    * Open a session already created server-side, by its id. Pass the `session_id`
    * a `POST /v3/initialize` (SECRET key) returned — the only way to preload
-   * `external_id` or a bound identity. The id is opaque data; the SDK builds the
-   * hosted URL against its own VerifyYou-locked `appBase`, so a caller can never
-   * steer the iframe to another origin. When set, vycheck SKIPS its own
-   * initialize and opens THAT session (the init() publishable key goes unused).
-   * Works in iframe display (the primary case); with `mode: "redirect"` it
-   * navigates straight to the built URL.
+   * `external_id`, a bound identity, or a per-run redirect. The id is opaque
+   * data; the SDK builds the hosted URL against its own VerifyYou-locked
+   * `appBase`, so a caller can never steer the iframe to another origin.
+   *
+   * When set, vycheck SKIPS its own initialize and opens THAT session — which
+   * means `init()` is optional on this path. Pass `mode`/`display`/`container`
+   * right here and the whole integration is one call.
    */
   session?: string;
 };
@@ -100,11 +105,27 @@ const VERDICT_PARAM = VERDICT_CODE_PARAM;
 let config: InitConfig | null = null;
 let lastResult: VyResult | null = null; // iframe completion, surfaced via vyget()
 
-function ensureConfig(): InitConfig {
-  if (!config) {
-    throw new Error("VerifyYou: call init({ publishableKey }) before vycheck()/vyget().");
+/** The config a call runs under. `init()` is required only when the SDK has to
+ *  start the run itself — opening a server-made session carries its own
+ *  authorization, so that path works with no init() at all. */
+function resolveConfig(overrides?: VyCheckOptions): VyCheckOptions {
+  if (config) return { ...config, ...overrides };
+  if (overrides?.session != null) return { ...overrides };
+  throw new Error(
+    "VerifyYou: pass vycheck({ session }) with a session id from your server, " +
+      "or call init({ publishableKey }) first.",
+  );
+}
+
+/** The browser-started path still needs a key; the session path never does. */
+function requireKey(key: string | undefined): string {
+  if (!key) {
+    throw new Error(
+      "VerifyYou: starting a run from the browser needs init({ publishableKey }). " +
+        "To open a session your server already made, pass vycheck({ session }).",
+    );
   }
-  return config;
+  return key;
 }
 
 function toVyResult(r: VerifyResult): VyResult {
@@ -235,7 +256,7 @@ export function vycheck(overrides?: VyCheckOptions): VyCheckHandle {
 }
 
 function runCheck(overrides?: VyCheckOptions): VyCheckHandle {
-  const cfg = { ...ensureConfig(), ...overrides };
+  const cfg = resolveConfig(overrides);
   const mode = cfg.mode ?? "redirect";
   // A bare session id (from a server-side /v3/initialize) skips our own
   // initialize: the SDK builds the hosted URL against its VerifyYou-locked
@@ -244,13 +265,19 @@ function runCheck(overrides?: VyCheckOptions): VyCheckHandle {
     cfg.session != null
       ? sessionUrlFromId(cfg.session, cfg.appBase ?? APP_BASE, cfg.connectBase)
       : undefined;
+  // One guard for BOTH modes: with no session the SDK has to start the run
+  // itself, and only the key can do that. Checked here rather than per-branch
+  // so iframe callers get the same message as redirect ones — and get it
+  // before any drawer is mounted.
+  const publishableKey =
+    sessionUrl == null ? requireKey(cfg.publishableKey) : cfg.publishableKey;
 
   if (mode === "iframe") {
     const session = verify({
       // A pre-initialized session URL is mounted as-is; otherwise verify()
       // exchanges the publishable key via /v3/initialize.
       sessionUrl,
-      publishableKey: cfg.publishableKey,
+      publishableKey,
       origin: cfg.origin,
       returnPath: cfg.returnPath,
       config: cfg.config,
@@ -285,7 +312,7 @@ function runCheck(overrides?: VyCheckOptions): VyCheckHandle {
     const url =
       sessionUrl ??
       (await initialize({
-        publishableKey: cfg.publishableKey,
+        publishableKey: requireKey(publishableKey),
         origin: cfg.origin,
         returnPath: cfg.returnPath,
         config: cfg.config,
