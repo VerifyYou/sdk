@@ -232,3 +232,103 @@ describe("vycheck({ session }) — open a session by id", () => {
     });
   });
 });
+
+// The server-session path carries its own authorization (your backend already
+// spent the secret key), so it must work with no init() and no publishable key
+// anywhere on the page. resetModules() clears the module-scoped config the
+// earlier suites installed.
+describe("vycheck({ session }) — without init()", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    window.history.replaceState({}, "", "/");
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+  });
+
+  it("mounts a server-made session with no init() and no key", async () => {
+    const { vycheck: fresh } = await import("./client");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    const result = fresh({
+      session: "sess_noinit",
+      mode: "iframe",
+      display: "inline",
+      container,
+    });
+    await vi.waitFor(() => {
+      if (!container.querySelector("iframe")?.getAttribute("src")) throw new Error("not mounted");
+    });
+    const iframe = container.querySelector("iframe") as HTMLIFrameElement;
+    expect(iframe.src).toContain("https://app.verifyyou.com/verification?vys=sess_noinit");
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: "https://app.verifyyou.com",
+        data: { type: "vy:complete", vyt: "tok_n", vyc: "1" },
+      }),
+    );
+    await expect(result).resolves.toEqual({ token: "tok_n", verified: true, vyc: "1" });
+  });
+
+  it("redirects to a server-made session with no init()", async () => {
+    const { vycheck: fresh } = await import("./client");
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign, search: "" });
+    void fresh({ session: "sess_r" }).catch(() => {});
+    await vi.waitFor(() => expect(assign).toHaveBeenCalledOnce());
+    expect(assign).toHaveBeenCalledWith("https://app.verifyyou.com/verification?vys=sess_r");
+  });
+
+  it("still refuses a browser-started run with nothing to go on", async () => {
+    const { vycheck: fresh } = await import("./client");
+    await expect(fresh()).rejects.toThrow(/vycheck\(\{ session \}\)/);
+  });
+
+  it("refuses a browser-started run when init() carried no key", async () => {
+    const { init: freshInit, vycheck: fresh } = await import("./client");
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign, search: "" });
+    freshInit({ connectBase: "http://localhost:8090" });
+    await expect(fresh()).rejects.toThrow(/needs init\(\{ publishableKey \}\)/);
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  // The keyless guard has to fire for iframe too. It used to slip past the
+  // redirect-only check and surface embed.ts's internal "verify() needs either
+  // a publishableKey or a sessionUrl" — naming a function nobody called.
+  it("refuses a keyless iframe run with the same message, mounting nothing", async () => {
+    const { init: freshInit, vycheck: fresh } = await import("./client");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    freshInit({ mode: "iframe", display: "inline", container });
+
+    await expect(fresh()).rejects.toThrow(/needs init\(\{ publishableKey \}\)/);
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("never asks for a key when a session is supplied, in either mode", async () => {
+    const { vycheck: fresh } = await import("./client");
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const check = fresh({
+      session: "sess_keyless",
+      mode: "iframe",
+      display: "inline",
+      container,
+    });
+    await vi.waitFor(() => {
+      if (!container.querySelector("iframe")?.getAttribute("src")) throw new Error("not mounted");
+    });
+    check.close();
+    await expect(check).resolves.toMatchObject({ token: null });
+  });
+});
